@@ -48,10 +48,25 @@ object TestBatchHive extends App {
     configuration.setString("table.exec.hive.fallback-mapred-reader", "true")
 
 
-    val sqlResult = tableEnv.sqlQuery("select username, age, height, dt, hr from fs_table_source")
+    val sqlResult: Table = tableEnv.sqlQuery(
+      """
+        | select username, age, height, dt, hr from fs_table_source
+        |""".stripMargin)
 
-    statementSet.addInsert("fs_table_dst", sqlResult)
-    statementSet.execute()
+    //    这种方式也可以
+    //    statementSet.addInsert("fs_table_dst", sqlResult)
+    //    statementSet.execute()
+
+    // register the view named 'fs_table_source.View' in the catalog named 'myhive'
+    // in the database named 'default'
+    tableEnv.createTemporaryView("fs_table_source.View", sqlResult)
+
+    // 统计总的数量
+    val total = tableEnv.executeSql("select count(*) from fs_table_source.View")
+    total.print()
+
+    // 写入hive的fs_table_dst表
+    tableEnv.executeSql("insert into fs_table_dst select * from fs_table_source.View")
 
   }
 }
